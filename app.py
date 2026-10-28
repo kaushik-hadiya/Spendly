@@ -2,7 +2,8 @@ import os
 import re
 import sqlite3
 
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import create_user, get_db, get_user_by_email, init_db, seed_db
 
@@ -11,6 +12,10 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MIN_PASSWORD_LENGTH = 8
+
+# Checked against when the email is unknown, so a miss takes as long as a
+# wrong password and response timing doesn't reveal which emails exist.
+DUMMY_PASSWORD_HASH = generate_password_hash("not-a-real-password")
 
 with app.app_context():
     init_db()
@@ -45,6 +50,8 @@ def landing():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "GET":
+        if session.get("user_id"):
+            return redirect(url_for("profile"))
         return render_template("register.html")
 
     name = request.form.get("name", "").strip()
@@ -69,9 +76,43 @@ def register():
     return redirect(url_for("login"))
 
 
-@app.route("/login")
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    return render_template("login.html")
+    if request.method == "GET":
+        if session.get("user_id"):
+            return redirect(url_for("profile"))
+        return render_template("login.html")
+
+    email = request.form.get("email", "").strip().lower()
+    password = request.form.get("password", "")
+
+    user = None
+    if not email or not password:
+        error = "Please enter your email and password."
+    else:
+        user = get_user_by_email(email)
+        if user is None:
+            check_password_hash(DUMMY_PASSWORD_HASH, password)
+            error = "Invalid email or password."
+        elif not check_password_hash(user["password_hash"], password):
+            error = "Invalid email or password."
+        else:
+            error = None
+
+    if error is not None:
+        return render_template("login.html", error=error, email=email)
+
+    session.clear()
+    session["user_id"] = user["id"]
+    session["user_name"] = user["name"]
+    return redirect(url_for("profile"))
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("You have been signed out.", "success")
+    return redirect(url_for("login"))
 
 
 @app.route("/terms")
@@ -87,11 +128,6 @@ def privacy():
 # ------------------------------------------------------------------ #
 # Placeholder routes — students will implement these                  #
 # ------------------------------------------------------------------ #
-
-@app.route("/logout")
-def logout():
-    return "Logout — coming in Step 3"
-
 
 @app.route("/profile")
 def profile():
