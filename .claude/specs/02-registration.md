@@ -1,0 +1,113 @@
+# Spec: Registration
+
+## Overview
+Make the existing registration page work. Right now `GET /register` only
+renders a form, and submitting it does nothing. This step adds a
+`POST /register` handler. It validates the submitted name, email, password and
+password confirmation, hashes the password with werkzeug, stores the new user in the `users` table,
+and sends the user to the login page with a success message. Account creation
+is the first real use of the Step 1 data layer and has to work before Step 3
+(login/logout) can authenticate anyone. This step does not log the user in and
+does not create a session for them. That is Step 3.
+
+## Depends on
+- **Step 1 — Database setup:** `get_db()`, `init_db()`, `seed_db()` and the
+  `users` table (`id`, `name`, `email UNIQUE`, `password_hash`, `created_at`)
+  in `database/db.py`.
+
+## Routes
+- `GET /register` — renders the registration form (exists already; keep it) — public
+- `POST /register` — validates the form, creates the user, redirects to
+  `url_for('login')` with a success flash; on failure re-renders
+  `register.html` with an error and the submitted name/email — public
+
+Both methods are handled by the existing `register()` view
+(`methods=["GET", "POST"]`). Do not add a second view function.
+
+## Database changes
+No database changes. The `users` table already has every column needed, and
+`email` is already `UNIQUE`.
+
+New helpers in `database/db.py` (no schema change):
+- `get_user_by_email(email)` — returns the `sqlite3.Row` or `None`
+- `create_user(name, email, password)` — hashes the password with
+  `generate_password_hash` and inserts the row. Returns the new user id.
+  Raises `sqlite3.IntegrityError` on a duplicate email so the route can
+  handle a race between the check and the insert.
+
+## Templates
+- **Create:** none
+- **Modify:**
+  - `templates/register.html`:
+    - Change the hardcoded `action="/register"` to
+      `action="{{ url_for('register') }}"`.
+    - Keep the submitted `name` and `email` in the inputs after an error
+      (`value="{{ name or '' }}"` and `value="{{ email or '' }}"`). Never
+      refill the password.
+    - Add `minlength="8"` to the password input.
+    - Add a "Confirm password" field (`type="password"`,
+      `name="confirm_password"`, `minlength="8"`, `required`) directly below
+      the password field. Never refill it.
+  - `templates/login.html` — render flashed messages (for example "Account
+    created — please sign in") above the form in an `.auth-success` box.
+  - `static/css/style.css` — add an `.auth-success` style next to
+    `.auth-error`, using only existing CSS variables (`--accent`,
+    `--accent-light`).
+
+## Files to change
+- `app.py` — `register()` accepts GET and POST. Set `app.secret_key` (read
+  from the `SECRET_KEY` env var, with a dev fallback) so `flash()` works.
+  Import `request`, `redirect`, `url_for` and `flash`.
+- `database/db.py` — add `get_user_by_email()` and `create_user()`.
+- `templates/register.html` — see Templates.
+- `templates/login.html` — see Templates.
+- `static/css/style.css` — `.auth-success` style.
+
+## Files to create
+- `tests/test_registration.py` — pytest tests for the registration flow,
+  using a temporary database (patch `database.db.DB_PATH` to a `tmp_path`
+  file) so tests never touch `expense_tracker.db`.
+
+## New dependencies
+No new dependencies. Flask, werkzeug, pytest and pytest-flask are already in
+`requirements.txt`.
+
+## Rules for implementation
+- No SQLAlchemy or ORMs. Use raw `sqlite3` through `get_db()` only.
+- Parameterised queries only (`?` placeholders). No f-strings or `%` in SQL.
+- Hash passwords with werkzeug's `generate_password_hash`. Never store,
+  log or flash the plain-text password.
+- Use CSS variables. Never hardcode hex values.
+- All templates extend `base.html`.
+- No DB logic in `app.py`. The route calls `db.py` helpers only.
+- Use `url_for()` for every internal link and form action.
+- Validation, done server-side even though the HTML has `required`:
+  - `name`: required after `.strip()`.
+  - `email`: required after `.strip().lower()`. Must contain `@` and a `.`
+    after it.
+  - `password`: required, at least 8 characters. Do not strip it.
+  - `confirm_password`: must exactly equal `password` (also unstripped).
+    A missing or different value → error "Passwords do not match."
+    Checked after the length rule. Never store, log or echo it back.
+  - Duplicate email → error "An account with that email already exists."
+- Show one error message at a time in the existing `.auth-error` box.
+- On success use Post/Redirect/Get: `redirect(url_for('login'))`. Never
+  render a template straight from a successful POST.
+- Do not implement login, logout or session handling. Those belong to Step 3.
+  `/login` stays GET-only in this step.
+- Vanilla JS only. No JS is needed for this step.
+
+## Definition of done
+- [ ] `GET /register` returns 200 and shows the form.
+- [ ] The form's `action` is generated by `url_for('register')`. No hardcoded `/register` remains.
+- [ ] The form has a "Confirm password" field below the password field.
+- [ ] Submitting a valid name, email, and matching password and confirmation creates a row in `users`, redirects (302) to `/login`, and the login page shows "Account created — please sign in".
+- [ ] The stored `password_hash` is a werkzeug hash (not the plain password), and `check_password_hash(hash, password)` returns `True`.
+- [ ] Emails are stored lowercased and trimmed. Registering `Foo@Example.com ` then `foo@example.com` is rejected as a duplicate.
+- [ ] Registering with `demo@spendly.com` shows "An account with that email already exists." and creates no new row.
+- [ ] An empty name, an invalid email, or a password under 8 characters each re-render the form with a specific error and status 200, and no row is created.
+- [ ] A confirmation that differs from the password, or is missing, re-renders the form with "Passwords do not match." and creates no row.
+- [ ] After a validation error, the name and email fields keep their values and both password fields are empty.
+- [ ] The success message box uses only CSS variables (no hex values in the new rules).
+- [ ] `pytest` passes, including `tests/test_registration.py`, and the tests do not modify `expense_tracker.db`.
+- [ ] `python app.py` starts on port 5001 without errors.
