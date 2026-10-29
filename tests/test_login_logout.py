@@ -101,7 +101,7 @@ def test_navbar_when_signed_in(client):
     login(client)
     html = client.get("/").get_data(as_text=True)
 
-    assert '<span class="nav-user">Demo User</span>' in html
+    assert '<a href="/profile" class="nav-user">Demo User</a>' in html
     assert 'href="/logout" class="nav-cta">Sign out<' in html
     assert 'href="/login">Sign in<' not in html
     assert 'class="nav-cta">Get started<' not in html
@@ -149,7 +149,6 @@ def test_logout_when_signed_out(client):
 
 
 def test_stub_routes_unchanged(client):
-    assert client.get("/profile").get_data(as_text=True) == "Profile page — coming in Step 4"
     assert client.get("/expenses/add").get_data(as_text=True) == "Add expense — coming in Step 7"
     assert client.get("/expenses/1/edit").get_data(as_text=True) == "Edit expense — coming in Step 8"
     assert client.get("/expenses/1/delete").get_data(as_text=True) == "Delete expense — coming in Step 9"

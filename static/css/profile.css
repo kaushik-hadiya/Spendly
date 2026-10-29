@@ -1,0 +1,270 @@
+/* ------------------------------------------------------------------ */
+/* Profile page                                                        */
+/* ------------------------------------------------------------------ */
+
+.profile-section {
+    padding: 3rem 2rem;
+}
+
+.profile-container {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.profile-container > .auth-error,
+.profile-container > .auth-success {
+    margin-bottom: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* User card                                                           */
+/* ------------------------------------------------------------------ */
+
+.profile-card {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 2rem;
+}
+
+.profile-avatar {
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-light);
+    color: var(--accent);
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+}
+
+.profile-info {
+    min-width: 0;
+}
+
+.profile-name {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 400;
+    color: var(--ink);
+}
+
+.profile-email {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    overflow-wrap: anywhere;
+}
+
+.profile-meta {
+    margin-top: 0.25rem;
+    color: var(--ink-muted);
+    font-size: 0.85rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* Stat tiles                                                          */
+/* ------------------------------------------------------------------ */
+
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+.stat-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-muted);
+}
+
+.stat-value {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    color: var(--ink);
+}
+
+/* ------------------------------------------------------------------ */
+/* Panels                                                              */
+/* ------------------------------------------------------------------ */
+
+.profile-panels {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.profile-panel {
+    min-width: 0;
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.75rem;
+}
+
+.panel-title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 400;
+    color: var(--ink);
+    margin-bottom: 1.25rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* Transactions table                                                  */
+/* ------------------------------------------------------------------ */
+
+.table-scroll {
+    overflow-x: auto;
+}
+
+.txn-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.txn-table th {
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-muted);
+    padding: 0 0.75rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.txn-table td {
+    padding: 0.85rem 0.75rem;
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--ink-soft);
+}
+
+.txn-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.txn-table th:first-child,
+.txn-table td:first-child {
+    padding-left: 0;
+}
+
+.txn-table th:last-child,
+.txn-table td:last-child {
+    padding-right: 0;
+}
+
+.txn-date {
+    white-space: nowrap;
+    color: var(--ink-muted);
+}
+
+.txn-table .amount {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+}
+
+.category-pill {
+    display: inline-block;
+    background: var(--cat-tint, var(--accent-light));
+    color: var(--cat-color, var(--accent));
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ */
+/* Category breakdown                                                  */
+/* ------------------------------------------------------------------ */
+
+.cat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.cat-row {
+    display: grid;
+    grid-template-columns: 110px 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.9rem;
+}
+
+.cat-name {
+    color: var(--ink-soft);
+}
+
+.cat-track {
+    height: 10px;
+    background: var(--paper-warm);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.cat-bar {
+    height: 100%;
+    background: var(--cat-color, var(--accent));
+    border-radius: 999px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Category colours — shared by pills and bars                         */
+/* ------------------------------------------------------------------ */
+
+.category-food          { --cat-color: var(--cat-food);          --cat-tint: var(--cat-food-light); }
+.category-transport     { --cat-color: var(--cat-transport);     --cat-tint: var(--cat-transport-light); }
+.category-bills         { --cat-color: var(--cat-bills);         --cat-tint: var(--cat-bills-light); }
+.category-health        { --cat-color: var(--cat-health);        --cat-tint: var(--cat-health-light); }
+.category-entertainment { --cat-color: var(--cat-entertainment); --cat-tint: var(--cat-entertainment-light); }
+.category-shopping      { --cat-color: var(--cat-shopping);      --cat-tint: var(--cat-shopping-light); }
+.category-other         { --cat-color: var(--cat-other);         --cat-tint: var(--cat-other-light); }
+
+.cat-amount {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+}
+
+/* ------------------------------------------------------------------ */
+/* Responsive                                                          */
+/* ------------------------------------------------------------------ */
+
+@media (max-width: 900px) {
+    .profile-panels { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+    .profile-section { padding: 2rem 1rem; }
+    .profile-card { padding: 1.5rem; gap: 1rem; }
+    .stat-grid { grid-template-columns: 1fr; gap: 1rem; }
+    .profile-panel { padding: 1.25rem; }
+    .cat-row { grid-template-columns: 90px 1fr auto; gap: 0.75rem; }
+}

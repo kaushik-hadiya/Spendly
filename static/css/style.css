@@ -19,6 +19,22 @@
     --border: #e4e1da;
     --border-soft: #eeebe4;
 
+    /* Expense categories — strong colour for bars/text, light for pill backgrounds */
+    --cat-food: #b86e14;
+    --cat-food-light: #fdf1e1;
+    --cat-transport: #2f6690;
+    --cat-transport-light: #e5eff7;
+    --cat-bills: #6a4c9c;
+    --cat-bills-light: #efe9f7;
+    --cat-health: #2e7d4f;
+    --cat-health-light: #e4f3ea;
+    --cat-entertainment: #b03a68;
+    --cat-entertainment-light: #f9e6ee;
+    --cat-shopping: #1f7a7a;
+    --cat-shopping-light: #e0f2f1;
+    --cat-other: #6b6b6b;
+    --cat-other-light: #efeeeb;
+
     --font-display: 'DM Serif Display', Georgia, serif;
     --font-body: 'DM Sans', system-ui, sans-serif;
 
