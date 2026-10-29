@@ -48,6 +48,43 @@ def get_user_by_id(user_id):
         conn.close()
 
 
+def get_expense_summary(user_id):
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count "
+            "FROM expenses WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def get_recent_expenses(user_id, limit=10):
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT id, date, description, category, amount FROM expenses "
+            "WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+    finally:
+        conn.close()
+
+
+def get_category_totals(user_id):
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT category, SUM(amount) AS amount FROM expenses "
+            "WHERE user_id = ? GROUP BY category "
+            "ORDER BY amount DESC, category ASC",
+            (user_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+
 def create_user(name, email, password):
     # Raises sqlite3.IntegrityError if the email is already registered.
     conn = get_db()

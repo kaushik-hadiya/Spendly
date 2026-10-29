@@ -8,7 +8,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import (
     create_user,
+    get_category_totals,
     get_db,
+    get_expense_summary,
+    get_recent_expenses,
     get_user_by_email,
     get_user_by_id,
     init_db,
@@ -24,19 +27,6 @@ MIN_PASSWORD_LENGTH = 8
 # Checked against when the email is unknown, so a miss takes as long as a
 # wrong password and response timing doesn't reveal which emails exist.
 DUMMY_PASSWORD_HASH = generate_password_hash("not-a-real-password")
-
-# Placeholder until a later step replaces this with real per-user queries.
-# Mirrors the seeded demo expenses: (date, description, category, amount).
-PLACEHOLDER_EXPENSES = (
-    ("2026-10-01", "Groceries at local market", "Food", 450.00),
-    ("2026-10-05", "Auto rickshaw to office", "Transport", 120.00),
-    ("2026-10-09", "Electricity bill", "Bills", 1850.00),
-    ("2026-10-13", "Pharmacy - medicines", "Health", 600.00),
-    ("2026-10-17", "Movie tickets", "Entertainment", 350.00),
-    ("2026-10-21", "New shirt", "Shopping", 2499.00),
-    ("2026-10-25", "Dinner with friends", "Food", 280.00),
-    ("2026-10-29", None, "Other", 200.00),
-)
 
 with app.app_context():
     init_db()
@@ -59,26 +49,25 @@ def validate_registration(name, email, password, confirm_password):
     return None
 
 
-def build_profile_placeholder():
-    total = sum(e[3] for e in PLACEHOLDER_EXPENSES)
+def build_profile_stats(user_id):
+    summary = get_expense_summary(user_id)
+    total = summary["total"]
 
-    by_category = {}
-    for _, _, category, amount in PLACEHOLDER_EXPENSES:
-        by_category[category] = by_category.get(category, 0) + amount
     categories = [
-        {"name": name, "amount": amount, "percent": round(amount / total * 100, 1)}
-        for name, amount in sorted(by_category.items(), key=lambda kv: kv[1], reverse=True)
+        {
+            "name": row["category"],
+            "amount": row["amount"],
+            "percent": round(row["amount"] / total * 100, 1) if total else 0,
+        }
+        for row in get_category_totals(user_id)
     ]
 
-    recent = [
-        {"date": d, "description": desc, "category": cat, "amount": amt}
-        for d, desc, cat, amt in sorted(PLACEHOLDER_EXPENSES, key=lambda e: e[0], reverse=True)
-    ]
+    recent = [dict(row) for row in get_recent_expenses(user_id)]
 
     return {
         "total": total,
-        "count": len(PLACEHOLDER_EXPENSES),
-        "top_category": categories[0]["name"],
+        "count": summary["count"],
+        "top_category": categories[0]["name"] if categories else None,
         "recent": recent,
         "categories": categories,
     }
@@ -221,7 +210,7 @@ def profile():
         session.clear()
         return redirect(url_for("login"))
 
-    return render_template("profile.html", user=user, **build_profile_placeholder())
+    return render_template("profile.html", user=user, **build_profile_stats(user["id"]))
 
 
 @app.route("/terms")
