@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics — Spendly{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="analytics-page">
+    <section class="coming-soon">
+        <div class="coming-soon-blob coming-soon-blob--top" aria-hidden="true"></div>
+        <div class="coming-soon-blob coming-soon-blob--bottom" aria-hidden="true"></div>
+
+        <div class="coming-soon-card">
+            <div class="coming-soon-corner coming-soon-corner--top" aria-hidden="true"></div>
+            <div class="coming-soon-corner coming-soon-corner--bottom" aria-hidden="true"></div>
+
+            <div class="coming-soon-icon-wrap">
+                <div class="coming-soon-icon-glow" aria-hidden="true"></div>
+                <div class="coming-soon-icon">
+                    <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="coming-soon-badge">
+                <span>Coming Soon</span>
+            </div>
+
+            <h1 class="coming-soon-title">Advanced Analytics</h1>
+
+            <p class="coming-soon-description">
+                We're working on powerful insights and visualizations to help you understand your spending patterns better.
+            </p>
+
+            <div class="coming-soon-progress">
+                <div class="coming-soon-dots" aria-hidden="true">
+                    <span class="coming-soon-dot"></span>
+                    <span class="coming-soon-dot"></span>
+                    <span class="coming-soon-dot"></span>
+                </div>
+                <p class="coming-soon-caption">We're crafting something special</p>
+            </div>
+
+            <div class="coming-soon-line" aria-hidden="true"></div>
+        </div>
+    </section>
+</div>
+{% endblock %}

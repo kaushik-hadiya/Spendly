@@ -99,6 +99,7 @@ pytest -s
 | `POST /login` | Implemented — session sign-in, redirects to `/profile` |
 | `GET /logout` | Implemented — clears session, redirects to `/login` |
 | `GET /profile` | Implemented — renders `profile.html` with the signed-in user's real expense stats; supports optional `?start=` / `?end=` (YYYY-MM-DD, inclusive) date filter, invalid ranges fall back to all time with an inline error; redirects signed-out users to `/login` |
+| `GET /analytics` | Implemented — renders `analytics.html` (Coming Soon page); navbar link shown only to signed-in users, highlighted via `request.endpoint`; redirects signed-out users to `/login` |
 | `GET /expenses/add` | Stub — Step 7 |
 | `GET /expenses/<id>/edit` | Stub — Step 8 |
 | `GET /expenses/<id>/delete` | Stub — Step 9 |
