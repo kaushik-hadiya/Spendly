@@ -112,7 +112,8 @@ def test_recent_transactions_table(client):
     # The seed's newest expense is always dated today.
     today = date.today().isoformat()
     assert f'<td class="txn-date">{short_date(today)}</td>' in html
-    assert today not in html
+    # Table dates use short_date; raw ISO dates may still appear in filter links.
+    assert not re.search(r'<td class="txn-date">\d{4}-\d{2}-\d{2}</td>', html)
 
 
 def test_category_bars_match_share_of_total(client):

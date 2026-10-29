@@ -26,6 +26,33 @@
             </div>
         </div>
 
+        {% set is_filtered = start_date or end_date %}
+        {% set period_empty = "No expenses in this period." %}
+        <div class="filter-block">
+            <div class="filter-bar">
+                <nav class="filter-presets" aria-label="Date range presets">
+                    {% for preset in presets %}
+                    <a href="{{ url_for('profile', start=preset.start, end=preset.end) }}" class="filter-preset{% if preset.start == start_date and preset.end == end_date %} active{% endif %}">{{ preset.label }}</a>
+                    {% endfor %}
+                </nav>
+                <form class="filter-form" method="get" action="{{ url_for('profile') }}">
+                    <label class="filter-field">
+                        <span class="filter-label">From</span>
+                        <input type="date" name="start" value="{{ start_date or '' }}" class="form-input filter-input">
+                    </label>
+                    <label class="filter-field">
+                        <span class="filter-label">To</span>
+                        <input type="date" name="end" value="{{ end_date or '' }}" class="form-input filter-input">
+                    </label>
+                    <button type="submit" class="btn-primary filter-apply">Apply</button>
+                </form>
+                {% if filter_error %}
+                <div class="auth-error filter-error">{{ filter_error }}</div>
+                {% endif %}
+            </div>
+            <p class="filter-caption">{{ range_caption }}</p>
+        </div>
+
         <div class="stat-grid">
             <div class="stat-tile">
                 <span class="stat-label">Total spent</span>
@@ -64,7 +91,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" class="profile-empty">No expenses yet.</td>
+                                <td colspan="4" class="profile-empty">{{ period_empty if is_filtered else "No expenses yet." }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -84,7 +111,7 @@
                         <span class="cat-amount">{{ c.amount|inr }}</span>
                     </div>
                     {% else %}
-                    <p class="profile-empty">No spending to show yet.</p>
+                    <p class="profile-empty">{{ period_empty if is_filtered else "No spending to show yet." }}</p>
                     {% endfor %}
                 </div>
             </div>

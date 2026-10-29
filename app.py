@@ -1,7 +1,7 @@
 import os
 import re
 import sqlite3
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -23,6 +23,8 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MIN_PASSWORD_LENGTH = 8
+DATE_FORMAT = "%Y-%m-%d"
+INVALID_RANGE_MESSAGE = "Invalid date range — showing all time."
 
 # Checked against when the email is unknown, so a miss takes as long as a
 # wrong password and response timing doesn't reveal which emails exist.
@@ -49,8 +51,58 @@ def validate_registration(name, email, password, confirm_password):
     return None
 
 
-def build_profile_stats(user_id):
-    summary = get_expense_summary(user_id)
+def _parse_iso_date(value):
+    value = (value or "").strip()
+    if not value:
+        return None
+    return datetime.strptime(value, DATE_FORMAT).date()
+
+
+def parse_date_range(args):
+    # Any bad value drops the whole filter — the page falls back to all time.
+    try:
+        start = _parse_iso_date(args.get("start"))
+        end = _parse_iso_date(args.get("end"))
+    except ValueError:
+        return None, None, INVALID_RANGE_MESSAGE
+    if start and end and start > end:
+        return None, None, INVALID_RANGE_MESSAGE
+    return (
+        start.isoformat() if start else None,
+        end.isoformat() if end else None,
+        None,
+    )
+
+
+def build_date_presets(today):
+    today_iso = today.isoformat()
+    return [
+        {
+            "label": "This month",
+            "start": today.replace(day=1).isoformat(),
+            "end": today_iso,
+        },
+        {
+            "label": "Last 30 days",
+            "start": (today - timedelta(days=29)).isoformat(),
+            "end": today_iso,
+        },
+        {"label": "All time", "start": None, "end": None},
+    ]
+
+
+def describe_date_range(start_date, end_date):
+    if start_date and end_date:
+        return f"Showing {short_date(start_date)} – {short_date(end_date)}"
+    if start_date:
+        return f"Showing from {short_date(start_date)}"
+    if end_date:
+        return f"Showing up to {short_date(end_date)}"
+    return "Showing all time"
+
+
+def build_profile_stats(user_id, start_date=None, end_date=None):
+    summary = get_expense_summary(user_id, start_date=start_date, end_date=end_date)
     total = summary["total"]
 
     categories = [
@@ -59,10 +111,13 @@ def build_profile_stats(user_id):
             "amount": row["amount"],
             "percent": round(row["amount"] / total * 100, 1) if total else 0,
         }
-        for row in get_category_totals(user_id)
+        for row in get_category_totals(user_id, start_date=start_date, end_date=end_date)
     ]
 
-    recent = [dict(row) for row in get_recent_expenses(user_id)]
+    recent = [
+        dict(row)
+        for row in get_recent_expenses(user_id, start_date=start_date, end_date=end_date)
+    ]
 
     return {
         "total": total,
@@ -107,7 +162,7 @@ def initials(name):
 @app.template_filter("short_date")
 def short_date(iso_date):
     try:
-        parsed = datetime.strptime(iso_date, "%Y-%m-%d")
+        parsed = datetime.strptime(iso_date, DATE_FORMAT)
     except (TypeError, ValueError):
         return iso_date or ""
     return f"{parsed.day} {parsed:%b}, {parsed.year}"
@@ -210,7 +265,17 @@ def profile():
         session.clear()
         return redirect(url_for("login"))
 
-    return render_template("profile.html", user=user, **build_profile_stats(user["id"]))
+    start_date, end_date, filter_error = parse_date_range(request.args)
+    return render_template(
+        "profile.html",
+        user=user,
+        start_date=start_date,
+        end_date=end_date,
+        filter_error=filter_error,
+        range_caption=describe_date_range(start_date, end_date),
+        presets=build_date_presets(date.today()),
+        **build_profile_stats(user["id"], start_date, end_date),
+    )
 
 
 @app.route("/terms")
