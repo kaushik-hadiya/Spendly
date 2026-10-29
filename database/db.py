@@ -48,38 +48,48 @@ def get_user_by_id(user_id):
         conn.close()
 
 
-def get_expense_summary(user_id):
+def _date_range_params(start_date, end_date):
+    # Binds for "(? IS NULL OR date >= ?) AND (? IS NULL OR date <= ?)";
+    # a None bound disables that side of the range.
+    return (start_date, start_date, end_date, end_date)
+
+
+def get_expense_summary(user_id, start_date=None, end_date=None):
     conn = get_db()
     try:
         return conn.execute(
             "SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count "
-            "FROM expenses WHERE user_id = ?",
-            (user_id,),
+            "FROM expenses WHERE user_id = ? "
+            "AND (? IS NULL OR date >= ?) AND (? IS NULL OR date <= ?)",
+            (user_id, *_date_range_params(start_date, end_date)),
         ).fetchone()
     finally:
         conn.close()
 
 
-def get_recent_expenses(user_id, limit=10):
+def get_recent_expenses(user_id, limit=10, start_date=None, end_date=None):
     conn = get_db()
     try:
         return conn.execute(
             "SELECT id, date, description, category, amount FROM expenses "
-            "WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT ?",
-            (user_id, limit),
+            "WHERE user_id = ? "
+            "AND (? IS NULL OR date >= ?) AND (? IS NULL OR date <= ?) "
+            "ORDER BY date DESC, id DESC LIMIT ?",
+            (user_id, *_date_range_params(start_date, end_date), limit),
         ).fetchall()
     finally:
         conn.close()
 
 
-def get_category_totals(user_id):
+def get_category_totals(user_id, start_date=None, end_date=None):
     conn = get_db()
     try:
         return conn.execute(
             "SELECT category, SUM(amount) AS amount FROM expenses "
-            "WHERE user_id = ? GROUP BY category "
-            "ORDER BY amount DESC, category ASC",
-            (user_id,),
+            "WHERE user_id = ? "
+            "AND (? IS NULL OR date >= ?) AND (? IS NULL OR date <= ?) "
+            "GROUP BY category ORDER BY amount DESC, category ASC",
+            (user_id, *_date_range_params(start_date, end_date)),
         ).fetchall()
     finally:
         conn.close()
