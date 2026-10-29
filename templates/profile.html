@@ -37,7 +37,7 @@
             </div>
             <div class="stat-tile">
                 <span class="stat-label">Top category</span>
-                <span class="stat-value">{{ top_category }}</span>
+                <span class="stat-value">{{ top_category or "—" }}</span>
             </div>
         </div>
 
@@ -62,6 +62,10 @@
                                 <td><span class="category-pill category-{{ e.category|lower }}">{{ e.category }}</span></td>
                                 <td class="amount">{{ e.amount|inr }}</td>
                             </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="profile-empty">No expenses yet.</td>
+                            </tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -79,6 +83,8 @@
                         </div>
                         <span class="cat-amount">{{ c.amount|inr }}</span>
                     </div>
+                    {% else %}
+                    <p class="profile-empty">No spending to show yet.</p>
                     {% endfor %}
                 </div>
             </div>

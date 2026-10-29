@@ -1,5 +1,6 @@
 import os
 import re
+from datetime import date
 
 import pytest
 
@@ -108,8 +109,10 @@ def test_recent_transactions_table(client):
     assert "<td>—</td>" in html
     assert html.count('class="category-pill category-') == 8
     assert 'class="category-pill category-bills">Bills<' in html
-    assert '<td class="txn-date">29 Oct, 2026</td>' in html
-    assert "2026-10-29" not in html
+    # The seed's newest expense is always dated today.
+    today = date.today().isoformat()
+    assert f'<td class="txn-date">{short_date(today)}</td>' in html
+    assert today not in html
 
 
 def test_category_bars_match_share_of_total(client):
