@@ -109,6 +109,20 @@ def create_user(name, email, password):
         conn.close()
 
 
+def create_expense(user_id, amount, category, expense_date, description=None):
+    conn = get_db()
+    try:
+        with conn:
+            cur = conn.execute(
+                "INSERT INTO expenses (user_id, amount, category, date, description) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (user_id, amount, category, expense_date, description or None),
+            )
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
 def init_db():
     conn = get_db()
     try:

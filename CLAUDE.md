@@ -18,7 +18,8 @@ spendly/
 ├── static/
 │   ├── css/
 │   │   ├── style.css       # Global styles
-│   │   └── landing.css     # Landing-page-only styles
+│   │   ├── landing.css     # Landing-page-only styles
+│   │   └── expense_form.css # Add/edit expense form styles
 │   └── js/
 │       └── main.js         # Vanilla JS only
 └── requirements.txt
@@ -100,7 +101,8 @@ pytest -s
 | `GET /logout` | Implemented — clears session, redirects to `/login` |
 | `GET /profile` | Implemented — renders `profile.html` with the signed-in user's real expense stats; supports optional `?start=` / `?end=` (YYYY-MM-DD, inclusive) date filter, invalid ranges fall back to all time with an inline error; redirects signed-out users to `/login` |
 | `GET /analytics` | Implemented — renders `analytics.html` (Coming Soon page); navbar link shown only to signed-in users, highlighted via `request.endpoint`; redirects signed-out users to `/login` |
-| `GET /expenses/add` | Stub — Step 7 |
+| `GET /expenses/add` | Implemented — renders `add_expense.html` (date defaults to today); redirects signed-out users to `/login` |
+| `POST /expenses/add` | Implemented — validated by `validate_expense()` in `app.py`, saved via `create_expense()` for the session user, flashes "Expense added.", redirects to `/profile`; invalid input re-renders the form with an inline error (200) |
 | `GET /expenses/<id>/edit` | Stub — Step 8 |
 | `GET /expenses/<id>/delete` | Stub — Step 9 |
 
@@ -115,6 +117,6 @@ pytest -s
 - **Never put DB logic in route functions** — it belongs in `database/db.py`
 - **Never install new packages** mid-feature without flagging it — keep `requirements.txt` in sync
 - **Never use JS frameworks** — the frontend is intentionally vanilla
-- **Check `database/db.py` before adding DB helpers** — it already has `get_db()`, `init_db()`, `seed_db()`, `get_user_by_email()`, `get_user_by_id()`, `create_user()`, `get_expense_summary()`, `get_recent_expenses()` and `get_category_totals()` (the last three accept optional `start_date` / `end_date` ISO-string kwargs, validated first by `parse_date_range()` in `app.py`); reuse these rather than writing duplicates, and don't assume any other helper exists until the step that implements it
+- **Check `database/db.py` before adding DB helpers** — it already has `get_db()`, `init_db()`, `seed_db()`, `get_user_by_email()`, `get_user_by_id()`, `create_user()`, `create_expense()`, `get_expense_summary()`, `get_recent_expenses()` and `get_category_totals()` (the last three accept optional `start_date` / `end_date` ISO-string kwargs, validated first by `parse_date_range()` in `app.py`); reuse these rather than writing duplicates, and don't assume any other helper exists until the step that implements it
 - **FK enforcement is manual** — SQLite foreign keys are off by default; `get_db()` must run `PRAGMA foreign_keys = ON` on every connection
 - The app runs on **port 5001**, not the Flask default 5000 — don't change this

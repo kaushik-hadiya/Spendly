@@ -1,12 +1,17 @@
+import hmac
+import math
 import os
 import re
+import secrets
 import sqlite3
 from datetime import date, datetime, timedelta
 
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import (
+    CATEGORIES,
+    create_expense,
     create_user,
     get_category_totals,
     get_db,
@@ -20,11 +25,16 @@ from database.db import (
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
+# Lax keeps the session cookie off cross-site POSTs — first line of CSRF defence.
+app.config.update(SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_HTTPONLY=True)
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MIN_PASSWORD_LENGTH = 8
 DATE_FORMAT = "%Y-%m-%d"
 INVALID_RANGE_MESSAGE = "Invalid date range — showing all time."
+MAX_EXPENSE_AMOUNT = 10_000_000
+MAX_DESCRIPTION_LENGTH = 200
+EXPENSE_FIELDS = ("amount", "category", "date", "description")
 
 # Checked against when the email is unknown, so a miss takes as long as a
 # wrong password and response timing doesn't reveal which emails exist.
@@ -72,6 +82,84 @@ def parse_date_range(args):
         end.isoformat() if end else None,
         None,
     )
+
+
+def validate_expense(form):
+    raw_amount = (form.get("amount") or "").strip()
+    if not raw_amount:
+        return None, "Please enter an amount."
+    try:
+        amount = float(raw_amount)
+    except ValueError:
+        return None, "Amount must be a number."
+    if not math.isfinite(amount):
+        return None, "Amount must be a number."
+    # Bounds are checked after rounding, so 0.004 is rejected and 99.999 → 100.0.
+    amount = round(amount, 2)
+    if amount <= 0:
+        return None, "Amount must be greater than ₹0."
+    if amount > MAX_EXPENSE_AMOUNT:
+        return None, f"Amount cannot exceed {format_inr(MAX_EXPENSE_AMOUNT)}."
+
+    category = form.get("category") or ""
+    if category not in CATEGORIES:
+        return None, "Please choose a valid category."
+
+    try:
+        expense_date = _parse_iso_date(form.get("date"))
+    except ValueError:
+        return None, "Please enter a valid date."
+    if expense_date is None:
+        return None, "Please enter a date."
+    if expense_date > date.today():
+        return None, "Date cannot be in the future."
+
+    description = (form.get("description") or "").strip() or None
+    if description and len(description) > MAX_DESCRIPTION_LENGTH:
+        return None, f"Description must be {MAX_DESCRIPTION_LENGTH} characters or fewer."
+
+    return {
+        "amount": amount,
+        "category": category,
+        "date": expense_date.isoformat(),
+        "description": description,
+    }, None
+
+
+def render_expense_form(values, error=None):
+    # values: dict keyed by EXPENSE_FIELDS — defaults on GET, submitted input on error.
+    return render_template(
+        "add_expense.html",
+        categories=CATEGORIES,
+        today=date.today().isoformat(),
+        max_description_length=MAX_DESCRIPTION_LENGTH,
+        values=values,
+        error=error,
+    )
+
+
+def get_current_user():
+    # The signed-in user's row, or None. A session pointing at a deleted
+    # user is cleared so it can't linger.
+    user_id = session.get("user_id")
+    if not user_id:
+        return None
+    user = get_user_by_id(user_id)
+    if user is None:
+        session.clear()
+    return user
+
+
+@app.template_global()
+def csrf_token():
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_hex(16)
+    return session["csrf_token"]
+
+
+def csrf_token_valid(form):
+    expected = session.get("csrf_token")
+    return bool(expected) and hmac.compare_digest(form.get("csrf_token", ""), expected)
 
 
 def build_date_presets(today):
@@ -255,14 +343,9 @@ def logout():
 
 @app.route("/profile")
 def profile():
-    user_id = session.get("user_id")
-    if not user_id:
-        flash("Please sign in to view your profile.", "error")
-        return redirect(url_for("login"))
-
-    user = get_user_by_id(user_id)
+    user = get_current_user()
     if user is None:
-        session.clear()
+        flash("Please sign in to view your profile.", "error")
         return redirect(url_for("login"))
 
     start_date, end_date, filter_error = parse_date_range(request.args)
@@ -280,13 +363,8 @@ def profile():
 
 @app.route("/analytics")
 def analytics():
-    user_id = session.get("user_id")
-    if not user_id:
+    if get_current_user() is None:
         flash("Please sign in to view analytics.", "error")
-        return redirect(url_for("login"))
-
-    if get_user_by_id(user_id) is None:
-        session.clear()
         return redirect(url_for("login"))
 
     return render_template("analytics.html")
@@ -302,14 +380,38 @@ def privacy():
     return render_template("privacy.html")
 
 
+@app.route("/expenses/add", methods=["GET", "POST"])
+def add_expense():
+    user = get_current_user()
+    if user is None:
+        flash("Please sign in to add an expense.", "error")
+        return redirect(url_for("login"))
+
+    if request.method == "GET":
+        return render_expense_form({"date": date.today().isoformat()})
+
+    if not csrf_token_valid(request.form):
+        abort(400)
+
+    expense, error = validate_expense(request.form)
+    if error is not None:
+        submitted = {field: request.form.get(field, "") for field in EXPENSE_FIELDS}
+        return render_expense_form(submitted, error)
+
+    create_expense(
+        user["id"],
+        expense["amount"],
+        expense["category"],
+        expense["date"],
+        expense["description"],
+    )
+    flash("Expense added.", "success")
+    return redirect(url_for("profile"))
+
+
 # ------------------------------------------------------------------ #
 # Placeholder routes — students will implement these                  #
 # ------------------------------------------------------------------ #
-
-@app.route("/expenses/add")
-def add_expense():
-    return "Add expense — coming in Step 7"
-
 
 @app.route("/expenses/<int:id>/edit")
 def edit_expense(id):

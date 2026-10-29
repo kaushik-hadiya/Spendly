@@ -24,6 +24,7 @@
                 <p class="profile-email">{{ user.email }}</p>
                 <p class="profile-meta">Member since {{ user.created_at|member_since }}</p>
             </div>
+            <a href="{{ url_for('add_expense') }}" class="btn-primary profile-add">Add expense</a>
         </div>
 
         {% set is_filtered = start_date or end_date %}
