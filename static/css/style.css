@@ -596,6 +596,31 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ------------------------------------------------------------------ */
+/* Category pills and colours — shared by profile and delete pages     */
+/* ------------------------------------------------------------------ */
+
+.category-pill {
+    display: inline-block;
+    background: var(--cat-tint, var(--accent-light));
+    color: var(--cat-color, var(--accent));
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.category-food          { --cat-color: var(--cat-food);          --cat-tint: var(--cat-food-light); }
+.category-transport     { --cat-color: var(--cat-transport);     --cat-tint: var(--cat-transport-light); }
+.category-bills         { --cat-color: var(--cat-bills);         --cat-tint: var(--cat-bills-light); }
+.category-health        { --cat-color: var(--cat-health);        --cat-tint: var(--cat-health-light); }
+.category-entertainment { --cat-color: var(--cat-entertainment); --cat-tint: var(--cat-entertainment-light); }
+.category-shopping      { --cat-color: var(--cat-shopping);      --cat-tint: var(--cat-shopping-light); }
+.category-other         { --cat-color: var(--cat-other);         --cat-tint: var(--cat-other-light); }
+
+/* ------------------------------------------------------------------ */
 /* Responsive                                                          */
 /* ------------------------------------------------------------------ */
 

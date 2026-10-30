@@ -55,13 +55,23 @@ def active_preset_labels(html):
 
 
 def presets_matching(start, end):
-    # On e.g. the 30th of a 30-day month, "This month" and "Last 30 days"
-    # cover the same range, so both are legitimately active.
+    # On e.g. the 30th of a 31-day month, "This month" and "Last 30 days"
+    # cover the same range — only the first of them should be active.
     return [
         p["label"]
         for p in build_date_presets(date.today())
         if p["start"] == start and p["end"] == end
-    ]
+    ][:1]
+
+
+def pin_today(monkeypatch, fixed):
+    # Make app.date.today() return `fixed`; other date behaviour is unchanged.
+    class FixedDate(date):
+        @classmethod
+        def today(cls):
+            return cls(fixed.year, fixed.month, fixed.day)
+
+    monkeypatch.setattr("app.date", FixedDate)
 
 
 @pytest.fixture
@@ -153,7 +163,10 @@ def test_this_month_preset_link_href(client, user):
     start = today.replace(day=1).isoformat()
     _, html = get_profile(client)
 
-    assert f'href="/profile?start={start}&amp;end={today.isoformat()}"' in html
+    assert (
+        f'href="/profile?start={start}&amp;end={today.isoformat()}'
+        '&amp;preset=this-month"'
+    ) in html
 
 
 def test_last_30_days_preset_link_href(client, user):
@@ -161,7 +174,10 @@ def test_last_30_days_preset_link_href(client, user):
     start = (today - timedelta(days=29)).isoformat()
     _, html = get_profile(client)
 
-    assert f'href="/profile?start={start}&amp;end={today.isoformat()}"' in html
+    assert (
+        f'href="/profile?start={start}&amp;end={today.isoformat()}'
+        '&amp;preset=last-30-days"'
+    ) in html
 
 
 def test_this_month_preset_is_active_and_captioned(client, user):
@@ -175,13 +191,12 @@ def test_this_month_preset_is_active_and_captioned(client, user):
     assert f"Showing {short_date(start)} – {short_date(today.isoformat())}" in html
 
 
-def test_last_30_days_preset_is_active(client, user):
-    today = date.today()
-    start = (today - timedelta(days=29)).isoformat()
-    _, html = get_profile(client, f"?start={start}&end={today.isoformat()}")
+def test_last_30_days_preset_is_active(client, user, monkeypatch):
+    # Pinned to a day where "Last 30 days" doesn't share "This month"'s range.
+    pin_today(monkeypatch, date(2026, 10, 15))
+    _, html = get_profile(client, "?start=2026-09-16&end=2026-10-15")
 
-    assert "Last 30 days" in presets_matching(start, today.isoformat())
-    assert active_preset_labels(html) == presets_matching(start, today.isoformat())
+    assert active_preset_labels(html) == ["Last 30 days"]
 
 
 def test_custom_range_has_no_active_preset(client, user):
@@ -563,6 +578,86 @@ def test_build_date_presets_last_30_days_spans_30_inclusive_days():
     by_label = {p["label"]: p for p in build_date_presets(today)}
 
     assert by_label["Last 30 days"]["start"] == (today - timedelta(days=29)).isoformat()
+
+
+def active_labels(presets):
+    return [p["label"] for p in presets if p["active"]]
+
+
+def test_overlapping_presets_only_first_is_active():
+    # 30 Oct: "This month" and "Last 30 days" both span 1–30 Oct.
+    today = date(2026, 10, 30)
+    presets = build_date_presets(today, "2026-10-01", "2026-10-30")
+
+    by_label = {p["label"]: p for p in presets}
+    assert by_label["This month"]["start"] == by_label["Last 30 days"]["start"]
+    assert active_labels(presets) == ["This month"]
+
+
+@pytest.mark.parametrize(
+    "start, end, expected",
+    [
+        ("2026-10-01", "2026-10-29", ["This month"]),
+        ("2026-09-30", "2026-10-29", ["Last 30 days"]),
+        (None, None, ["All time"]),
+        ("2026-02-01", "2026-02-28", []),
+    ],
+)
+def test_build_date_presets_marks_at_most_one_active(start, end, expected):
+    presets = build_date_presets(date(2026, 10, 29), start, end)
+    assert active_labels(presets) == expected
+
+
+def test_profile_overlap_lights_only_this_month(client, user, monkeypatch):
+    # Pin "today" to an overlap day so the page-level check is deterministic.
+    pin_today(monkeypatch, date(2026, 10, 30))
+    _, html = get_profile(client, "?start=2026-10-01&end=2026-10-30")
+
+    assert active_preset_labels(html) == ["This month"]
+
+
+@pytest.mark.parametrize(
+    "preset, expected",
+    [("last-30-days", ["Last 30 days"]), ("this-month", ["This month"])],
+)
+def test_profile_overlap_lights_the_clicked_preset(
+    client, user, monkeypatch, preset, expected
+):
+    # 30 Oct: both presets link to 1–30 Oct; ?preset= says which was clicked.
+    pin_today(monkeypatch, date(2026, 10, 30))
+    _, html = get_profile(
+        client, f"?start=2026-10-01&end=2026-10-30&preset={preset}"
+    )
+
+    assert active_preset_labels(html) == expected
+
+
+def test_clicking_last_30_days_link_on_overlap_day_keeps_it_lit(
+    client, user, monkeypatch
+):
+    # Follow the real href from the page, as a browser click would.
+    pin_today(monkeypatch, date(2026, 10, 30))
+    _, html = get_profile(client)
+    href = re.search(r'<a href="([^"]*)" class="filter-preset[^"]*">Last 30 days</a>', html)
+    _, html = get_profile(client, "?" + href.group(1).split("?", 1)[1].replace("&amp;", "&"))
+
+    assert active_preset_labels(html) == ["Last 30 days"]
+
+
+@pytest.mark.parametrize(
+    "start, end, chosen, expected",
+    [
+        # Key's range doesn't match the dates shown → ignored, date match wins.
+        ("2026-10-01", "2026-10-29", "last-30-days", ["This month"]),
+        # Unknown key → ignored.
+        ("2026-09-30", "2026-10-29", "bogus", ["Last 30 days"]),
+        # Custom range never lights a preset, even with a key.
+        ("2026-02-01", "2026-02-28", "this-month", []),
+    ],
+)
+def test_build_date_presets_ignores_mismatched_preset_key(start, end, chosen, expected):
+    presets = build_date_presets(date(2026, 10, 29), start, end, chosen)
+    assert active_labels(presets) == expected
 
 
 @pytest.mark.parametrize(

@@ -6,34 +6,29 @@ import pytest
 from database.db import get_db
 from helpers import (
     DEMO_USER_ID,
+    GROCERIES,
     add_expense as insert_expense,
+    attr,
+    csrf_token_for,
+    expense_count,
+    fetch_row,
+    groceries_id,
+    input_tag,
     register_and_login,
     sign_in_as_demo,
+    snapshot,
     txn_rows,
 )
 
 TODAY = date.today().isoformat()
 TOMORROW = (date.today() + timedelta(days=1)).isoformat()
 OLD_DATE = (date.today() - timedelta(days=40)).isoformat()
-GROCERIES = "Groceries at local market"
 MISSING_ID = 99999
 
 
 # ------------------------------------------------------------------ #
 # Helpers                                                             #
 # ------------------------------------------------------------------ #
-
-def fetch_row(expense_id):
-    conn = get_db()
-    try:
-        return conn.execute(
-            "SELECT id, user_id, amount, category, date, description "
-            "FROM expenses WHERE id = ?",
-            (expense_id,),
-        ).fetchone()
-    finally:
-        conn.close()
-
 
 def all_rows_except(expense_id):
     conn = get_db()
@@ -63,46 +58,8 @@ def latest_expense_id(user_id=None):
         conn.close()
 
 
-def snapshot(expense_id):
-    row = fetch_row(expense_id)
-    return tuple(row) if row is not None else None
-
-
-def expense_count(user_id=None):
-    conn = get_db()
-    try:
-        if user_id is None:
-            row = conn.execute("SELECT COUNT(*) AS n FROM expenses").fetchone()
-        else:
-            row = conn.execute(
-                "SELECT COUNT(*) AS n FROM expenses WHERE user_id = ?",
-                (user_id,),
-            ).fetchone()
-        return row["n"]
-    finally:
-        conn.close()
-
-
-def groceries_id():
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT id FROM expenses WHERE description = ? AND user_id = ?",
-            (GROCERIES, DEMO_USER_ID),
-        ).fetchone()
-    finally:
-        conn.close()
-    assert row is not None, "Seeded groceries expense missing"
-    return row["id"]
-
-
 def edit_url(expense_id):
     return f"/expenses/{expense_id}/edit"
-
-
-def csrf_token_for(client):
-    with client.session_transaction() as sess:
-        return sess.setdefault("csrf_token", "test-csrf-token")
 
 
 def valid_form(**overrides):
@@ -121,17 +78,6 @@ def post_form(client, expense_id, data):
         edit_url(expense_id),
         data={"csrf_token": csrf_token_for(client), **data},
     )
-
-
-def input_tag(html, name):
-    match = re.search(r'<input\b[^>]*\bname="%s"[^>]*>' % re.escape(name), html)
-    assert match, f"No <input name={name}> found in page"
-    return match.group(0)
-
-
-def attr(tag, attribute):
-    match = re.search(r'\b%s="([^"]*)"' % re.escape(attribute), tag)
-    return match.group(1) if match else None
 
 
 def select_options(html):
@@ -578,15 +524,11 @@ class TestDateFilter:
 
 
 # ------------------------------------------------------------------ #
-# Neighbouring stubs                                                  #
+# Neighbouring routes                                                 #
 # ------------------------------------------------------------------ #
 
-class TestStubs:
-    def test_delete_stub_unchanged(self, client):
-        text = client.get("/expenses/1/delete").get_data(as_text=True)
-        assert text == "Delete expense — coming in Step 9"
-
-    def test_delete_stub_does_not_remove_row(self, client, gid):
+class TestNeighbouringRoutes:
+    def test_signed_out_delete_get_does_not_remove_row(self, client, gid):
         before = expense_count()
         client.get(f"/expenses/{gid}/delete")
         assert expense_count() == before

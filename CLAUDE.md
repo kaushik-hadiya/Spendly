@@ -19,7 +19,8 @@ spendly/
 │   ├── css/
 │   │   ├── style.css       # Global styles
 │   │   ├── landing.css     # Landing-page-only styles
-│   │   └── expense_form.css # Add/edit expense form styles
+│   │   ├── expense_form.css # Add/edit expense form styles
+│   │   └── delete_expense.css # Delete confirmation page styles
 │   └── js/
 │       └── main.js         # Vanilla JS only
 └── requirements.txt
@@ -99,13 +100,14 @@ pytest -s
 | `GET /login` | Implemented — renders `login.html`; redirects signed-in users to `/profile` |
 | `POST /login` | Implemented — session sign-in, redirects to `/profile` |
 | `GET /logout` | Implemented — clears session, redirects to `/login` |
-| `GET /profile` | Implemented — renders `profile.html` with the signed-in user's real expense stats; supports optional `?start=` / `?end=` (YYYY-MM-DD, inclusive) date filter, invalid ranges fall back to all time with an inline error; redirects signed-out users to `/login` |
+| `GET /profile` | Implemented — renders `profile.html` with the signed-in user's real expense stats; supports optional `?start=` / `?end=` (YYYY-MM-DD, inclusive) date filter, invalid ranges fall back to all time with an inline error; preset links also carry `?preset=this-month|last-30-days` so the clicked preset stays highlighted when two presets share a range; redirects signed-out users to `/login` |
 | `GET /analytics` | Implemented — renders `analytics.html` (Coming Soon page); navbar link shown only to signed-in users, highlighted via `request.endpoint`; redirects signed-out users to `/login` |
 | `GET /expenses/add` | Implemented — renders `add_expense.html` (date defaults to today); redirects signed-out users to `/login` |
 | `POST /expenses/add` | Implemented — validated by `validate_expense()` in `app.py`, saved via `create_expense()` for the session user, flashes "Expense added.", redirects to `/profile`; invalid input re-renders the form with an inline error (200) |
 | `GET /expenses/<id>/edit` | Implemented — renders `edit_expense.html` pre-filled with the expense (form fields shared with add via `_expense_form_fields.html`); 404 if the expense is missing or not the session user's; redirects signed-out users to `/login` |
 | `POST /expenses/<id>/edit` | Implemented — validated by `validate_expense()`, saved via `update_expense()` scoped to the session user, flashes "Expense updated.", redirects to `/profile`; invalid input re-renders with an inline error (200); bad CSRF → 400 |
-| `GET /expenses/<id>/delete` | Stub — Step 9 |
+| `GET /expenses/<id>/delete` | Implemented — renders `delete_expense.html` confirmation (amount, category, date, description); never modifies the DB; 404 if the expense is missing or not the session user's; redirects signed-out users to `/login` |
+| `POST /expenses/<id>/delete` | Implemented — deletes via `delete_expense_by_id()` scoped to the session user, flashes "Expense deleted.", redirects to `/profile`; bad CSRF → 400; missing or not owned → 404 |
 
 **Do not implement a stub route unless the active task explicitly targets that step.**
 
@@ -118,6 +120,6 @@ pytest -s
 - **Never put DB logic in route functions** — it belongs in `database/db.py`
 - **Never install new packages** mid-feature without flagging it — keep `requirements.txt` in sync
 - **Never use JS frameworks** — the frontend is intentionally vanilla
-- **Check `database/db.py` before adding DB helpers** — it already has `get_db()`, `init_db()`, `seed_db()`, `get_user_by_email()`, `get_user_by_id()`, `create_user()`, `create_expense()`, `get_expense_by_id()`, `update_expense()` (both scoped by `user_id`), `get_expense_summary()`, `get_recent_expenses()` and `get_category_totals()` (the last three accept optional `start_date` / `end_date` ISO-string kwargs, validated first by `parse_date_range()` in `app.py`); reuse these rather than writing duplicates, and don't assume any other helper exists until the step that implements it
+- **Check `database/db.py` before adding DB helpers** — it already has `get_db()`, `init_db()`, `seed_db()`, `get_user_by_email()`, `get_user_by_id()`, `create_user()`, `create_expense()`, `get_expense_by_id()`, `update_expense()`, `delete_expense_by_id()` (all scoped by `user_id`), `get_expense_summary()`, `get_recent_expenses()` and `get_category_totals()` (the last three accept optional `start_date` / `end_date` ISO-string kwargs, validated first by `parse_date_range()` in `app.py`); reuse these rather than writing duplicates, and don't assume any other helper exists until the step that implements it
 - **FK enforcement is manual** — SQLite foreign keys are off by default; `get_db()` must run `PRAGMA foreign_keys = ON` on every connection
 - The app runs on **port 5001**, not the Flask default 5000 — don't change this

@@ -8,6 +8,10 @@ from database.db import CATEGORIES, create_expense, get_db
 from helpers import (
     DEMO_USER_ID,
     add_expense as insert_expense,
+    attr,
+    csrf_token_for,
+    expense_count,
+    input_tag,
     register_and_login,
     sign_in_as_demo,
     txn_rows,
@@ -23,21 +27,6 @@ YESTERDAY = (date.today() - timedelta(days=1)).isoformat()
 # ------------------------------------------------------------------ #
 # Helpers                                                             #
 # ------------------------------------------------------------------ #
-
-def expense_count(user_id=None):
-    conn = get_db()
-    try:
-        if user_id is None:
-            row = conn.execute("SELECT COUNT(*) AS n FROM expenses").fetchone()
-        else:
-            row = conn.execute(
-                "SELECT COUNT(*) AS n FROM expenses WHERE user_id = ?",
-                (user_id,),
-            ).fetchone()
-        return row["n"]
-    finally:
-        conn.close()
-
 
 def last_expense():
     conn = get_db()
@@ -60,29 +49,12 @@ def valid_form(**overrides):
     return data
 
 
-def csrf_token_for(client):
-    # Mirrors what GET /expenses/add does: one token per session.
-    with client.session_transaction() as sess:
-        return sess.setdefault("csrf_token", "test-csrf-token")
-
-
 def post_form(client, data):
     return client.post(ADD_URL, data={"csrf_token": csrf_token_for(client), **data})
 
 
 def post_expense(client, **overrides):
     return post_form(client, valid_form(**overrides))
-
-
-def input_tag(html, name):
-    match = re.search(r'<input\b[^>]*\bname="%s"[^>]*>' % re.escape(name), html)
-    assert match, f"No <input name={name}> found in page"
-    return match.group(0)
-
-
-def attr(tag, attribute):
-    match = re.search(r'\b%s="([^"]*)"' % re.escape(attribute), tag)
-    return match.group(1) if match else None
 
 
 def select_options(html):
@@ -581,6 +553,8 @@ class TestAssetsAndStubs:
             f"Hardcoded hex colour in {relative}"
         )
 
-    def test_delete_stub_unchanged(self, client):
-        text = client.get("/expenses/1/delete").get_data(as_text=True)
-        assert text == "Delete expense — coming in Step 9"
+    def test_delete_route_no_longer_a_stub(self, client):
+        response = client.get("/expenses/1/delete")
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/login")
+        assert b"coming in Step 9" not in response.data
