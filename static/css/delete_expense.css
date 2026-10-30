@@ -1,0 +1,48 @@
+/* ------------------------------------------------------------------ */
+/* Delete expense confirmation                                         */
+/* ------------------------------------------------------------------ */
+
+.delete-summary {
+    display: flex;
+    flex-direction: column;
+    margin: 0 0 1.5rem;
+}
+
+.delete-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.delete-summary-row:last-child {
+    border-bottom: none;
+}
+
+.delete-summary dt {
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+}
+
+.delete-summary dd {
+    margin: 0;
+    color: var(--ink);
+    text-align: right;
+}
+
+.delete-summary-amount dd {
+    font-size: 1.5rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Prefixed to outrank .btn-submit / .btn-submit:hover from style.css. */
+.form-actions .btn-danger {
+    background: var(--danger);
+}
+
+.form-actions .btn-danger:hover {
+    background: color-mix(in srgb, var(--danger) 85%, var(--ink));
+}

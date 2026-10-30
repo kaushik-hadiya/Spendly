@@ -12,6 +12,11 @@ PROFILE_CSS = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "static", "css", "profile.css",
 )
+# Category pill/bar colours are shared, so they live in the global stylesheet.
+STYLE_CSS = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "static", "css", "style.css",
+)
 
 
 def login(client, email=DEMO_EMAIL, password=DEMO_PASSWORD):
@@ -128,7 +133,7 @@ def test_category_bars_match_share_of_total(client):
 
 def test_each_category_has_its_own_colour(client):
     html = profile_html(client)
-    with open(PROFILE_CSS, encoding="utf-8") as f:
+    with open(STYLE_CSS, encoding="utf-8") as f:
         css = f.read()
 
     bar_classes = re.findall(r'class="cat-bar (category-\w+)"', html)

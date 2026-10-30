@@ -13,6 +13,7 @@ from database.db import (
     CATEGORIES,
     create_expense,
     create_user,
+    delete_expense_by_id,
     get_category_totals,
     get_db,
     get_expense_by_id,
@@ -26,7 +27,9 @@ from database.db import (
 )
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
+# Without SECRET_KEY, use a random per-process key rather than a known string,
+# so session cookies can't be forged. Sessions then reset on restart.
+app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 # Lax keeps the session cookie off cross-site POSTs — first line of CSRF defence.
 app.config.update(SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_HTTPONLY=True)
 
@@ -193,21 +196,38 @@ def csrf_token_valid(form):
     )
 
 
-def build_date_presets(today):
+def build_date_presets(today, start_date=None, end_date=None, chosen=None):
+    # chosen: the ?preset= key from the clicked link. Two presets can share a
+    # range (e.g. on the 30th of a 31-day month both "This month" and "Last 30
+    # days" start on the 1st), so the dates alone can't say which was clicked.
     today_iso = today.isoformat()
-    return [
+    presets = [
         {
+            "key": "this-month",
             "label": "This month",
             "start": today.replace(day=1).isoformat(),
             "end": today_iso,
         },
         {
+            "key": "last-30-days",
             "label": "Last 30 days",
             "start": (today - timedelta(days=29)).isoformat(),
             "end": today_iso,
         },
-        {"label": "All time", "start": None, "end": None},
+        {"key": None, "label": "All time", "start": None, "end": None},
     ]
+    matching = [
+        p for p in presets if p["start"] == start_date and p["end"] == end_date
+    ]
+    # Trust the clicked preset only if its range is the one being shown;
+    # otherwise (typed-in dates, stale link) the first matching preset lights up.
+    active = next(
+        (p for p in matching if chosen and p["key"] == chosen),
+        matching[0] if matching else None,
+    )
+    for preset in presets:
+        preset["active"] = preset is active
+    return presets
 
 
 def describe_date_range(start_date, end_date):
@@ -387,7 +407,9 @@ def profile():
         end_date=end_date,
         filter_error=filter_error,
         range_caption=describe_date_range(start_date, end_date),
-        presets=build_date_presets(date.today()),
+        presets=build_date_presets(
+            date.today(), start_date, end_date, request.args.get("preset")
+        ),
         **build_profile_stats(user["id"], start_date, end_date),
     )
 
@@ -477,13 +499,30 @@ def edit_expense(id):
     return redirect(url_for("profile"))
 
 
-# ------------------------------------------------------------------ #
-# Placeholder routes — students will implement these                  #
-# ------------------------------------------------------------------ #
-
-@app.route("/expenses/<int:id>/delete")
+@app.route("/expenses/<int:id>/delete", methods=["GET", "POST"])
 def delete_expense(id):
-    return "Delete expense — coming in Step 9"
+    user = get_current_user()
+    if user is None:
+        flash("Please sign in to delete an expense.", "error")
+        return redirect(url_for("login"))
+
+    # Reject forged POSTs before touching the DB.
+    if request.method == "POST" and not csrf_token_valid(request.form):
+        abort(400)
+
+    # Missing and not-yours look the same, so other users' ids aren't revealed.
+    expense = get_expense_by_id(id, user["id"])
+    if expense is None:
+        abort(404)
+
+    if request.method == "GET":
+        return render_template("delete_expense.html", expense=expense)
+
+    # The row can vanish between the read and the write (e.g. deleted in another tab).
+    if delete_expense_by_id(id, user["id"]) == 0:
+        abort(404)
+    flash("Expense deleted.", "success")
+    return redirect(url_for("profile"))
 
 
 if __name__ == "__main__":

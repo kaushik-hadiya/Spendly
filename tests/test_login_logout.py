@@ -148,8 +148,11 @@ def test_logout_when_signed_out(client):
     assert b"coming in Step 3" not in response.data
 
 
-def test_stub_routes_unchanged(client):
-    assert client.get("/expenses/1/delete").get_data(as_text=True) == "Delete expense — coming in Step 9"
+def test_delete_route_requires_login(client):
+    response = client.get("/expenses/1/delete")
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/login")
+    assert b"coming in Step 9" not in response.data
 
 
 def test_login_clears_previous_session(client):

@@ -153,6 +153,20 @@ def update_expense(
         conn.close()
 
 
+def delete_expense_by_id(expense_id, user_id):
+    # Returns the number of rows deleted: 1, or 0 if the user doesn't own it.
+    conn = get_db()
+    try:
+        with conn:
+            cur = conn.execute(
+                "DELETE FROM expenses WHERE id = ? AND user_id = ?",
+                (expense_id, user_id),
+            )
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
 def init_db():
     conn = get_db()
     try:
