@@ -192,6 +192,21 @@
     color: var(--ink);
 }
 
+.txn-table .txn-actions {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.txn-edit {
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+    text-decoration: none;
+}
+
+.txn-edit:hover {
+    color: var(--accent);
+}
+
 .category-pill {
     display: inline-block;
     background: var(--cat-tint, var(--accent-light));

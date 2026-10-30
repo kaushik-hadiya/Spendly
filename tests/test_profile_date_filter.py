@@ -54,6 +54,16 @@ def active_preset_labels(html):
     ]
 
 
+def presets_matching(start, end):
+    # On e.g. the 30th of a 30-day month, "This month" and "Last 30 days"
+    # cover the same range, so both are legitimately active.
+    return [
+        p["label"]
+        for p in build_date_presets(date.today())
+        if p["start"] == start and p["end"] == end
+    ]
+
+
 @pytest.fixture
 def user(client):
     """Fresh registered, signed-in user with three fixed-date expenses."""
@@ -160,7 +170,8 @@ def test_this_month_preset_is_active_and_captioned(client, user):
     response, html = get_profile(client, f"?start={start}&end={today.isoformat()}")
 
     assert response.status_code == 200
-    assert active_preset_labels(html) == ["This month"]
+    assert "This month" in presets_matching(start, today.isoformat())
+    assert active_preset_labels(html) == presets_matching(start, today.isoformat())
     assert f"Showing {short_date(start)} – {short_date(today.isoformat())}" in html
 
 
@@ -169,7 +180,8 @@ def test_last_30_days_preset_is_active(client, user):
     start = (today - timedelta(days=29)).isoformat()
     _, html = get_profile(client, f"?start={start}&end={today.isoformat()}")
 
-    assert active_preset_labels(html) == ["Last 30 days"]
+    assert "Last 30 days" in presets_matching(start, today.isoformat())
+    assert active_preset_labels(html) == presets_matching(start, today.isoformat())
 
 
 def test_custom_range_has_no_active_preset(client, user):

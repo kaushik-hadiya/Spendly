@@ -149,7 +149,6 @@ def test_logout_when_signed_out(client):
 
 
 def test_stub_routes_unchanged(client):
-    assert client.get("/expenses/1/edit").get_data(as_text=True) == "Edit expense — coming in Step 8"
     assert client.get("/expenses/1/delete").get_data(as_text=True) == "Delete expense — coming in Step 9"
 
 

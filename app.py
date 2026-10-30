@@ -15,12 +15,14 @@ from database.db import (
     create_user,
     get_category_totals,
     get_db,
+    get_expense_by_id,
     get_expense_summary,
     get_recent_expenses,
     get_user_by_email,
     get_user_by_id,
     init_db,
     seed_db,
+    update_expense,
 )
 
 app = Flask(__name__)
@@ -126,15 +128,40 @@ def validate_expense(form):
     }, None
 
 
-def render_expense_form(values, error=None):
+def render_expense_form(values, error=None, template="add_expense.html", **context):
     # values: dict keyed by EXPENSE_FIELDS — defaults on GET, submitted input on error.
+    # template / **context let the add and edit pages share this; context is
+    # passed through to the template (e.g. expense_id for the edit form action).
     return render_template(
-        "add_expense.html",
+        template,
         categories=CATEGORIES,
         today=date.today().isoformat(),
         max_description_length=MAX_DESCRIPTION_LENGTH,
         values=values,
         error=error,
+        **context,
+    )
+
+
+def expense_form_values(expense):
+    # Dict keyed by EXPENSE_FIELDS from a DB row. Plain number for the
+    # type="number" input — no ₹ or digit grouping.
+    return {
+        "amount": f"{expense['amount']:.2f}",
+        "category": expense["category"],
+        "date": expense["date"],
+        "description": expense["description"] or "",
+    }
+
+
+def submitted_expense_values(form):
+    # Raw form input keyed by EXPENSE_FIELDS, echoed back when validation fails.
+    return {field: form.get(field, "") for field in EXPENSE_FIELDS}
+
+
+def render_edit_expense_form(expense_id, values, error=None):
+    return render_expense_form(
+        values, error, template="edit_expense.html", expense_id=expense_id
     )
 
 
@@ -158,8 +185,12 @@ def csrf_token():
 
 
 def csrf_token_valid(form):
+    # Compared as bytes — compare_digest raises TypeError on non-ASCII str.
     expected = session.get("csrf_token")
-    return bool(expected) and hmac.compare_digest(form.get("csrf_token", ""), expected)
+    supplied = form.get("csrf_token", "")
+    return bool(expected) and hmac.compare_digest(
+        supplied.encode("utf-8"), expected.encode("utf-8")
+    )
 
 
 def build_date_presets(today):
@@ -395,8 +426,7 @@ def add_expense():
 
     expense, error = validate_expense(request.form)
     if error is not None:
-        submitted = {field: request.form.get(field, "") for field in EXPENSE_FIELDS}
-        return render_expense_form(submitted, error)
+        return render_expense_form(submitted_expense_values(request.form), error)
 
     create_expense(
         user["id"],
@@ -409,14 +439,47 @@ def add_expense():
     return redirect(url_for("profile"))
 
 
+@app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])
+def edit_expense(id):
+    user = get_current_user()
+    if user is None:
+        flash("Please sign in to edit an expense.", "error")
+        return redirect(url_for("login"))
+
+    # Reject forged POSTs before touching the DB.
+    if request.method == "POST" and not csrf_token_valid(request.form):
+        abort(400)
+
+    # Missing and not-yours look the same, so other users' ids aren't revealed.
+    expense = get_expense_by_id(id, user["id"])
+    if expense is None:
+        abort(404)
+
+    if request.method == "GET":
+        return render_edit_expense_form(id, expense_form_values(expense))
+
+    updated, error = validate_expense(request.form)
+    if error is not None:
+        return render_edit_expense_form(id, submitted_expense_values(request.form), error)
+
+    changed = update_expense(
+        id,
+        user["id"],
+        updated["amount"],
+        updated["category"],
+        updated["date"],
+        updated["description"],
+    )
+    # The row can vanish between the read and the write (e.g. deleted in another tab).
+    if changed == 0:
+        abort(404)
+    flash("Expense updated.", "success")
+    return redirect(url_for("profile"))
+
+
 # ------------------------------------------------------------------ #
 # Placeholder routes — students will implement these                  #
 # ------------------------------------------------------------------ #
-
-@app.route("/expenses/<int:id>/edit")
-def edit_expense(id):
-    return "Edit expense — coming in Step 8"
-
 
 @app.route("/expenses/<int:id>/delete")
 def delete_expense(id):
