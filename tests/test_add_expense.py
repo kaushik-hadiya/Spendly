@@ -581,10 +581,6 @@ class TestAssetsAndStubs:
             f"Hardcoded hex colour in {relative}"
         )
 
-    def test_edit_stub_unchanged(self, client):
-        text = client.get("/expenses/1/edit").get_data(as_text=True)
-        assert text == "Edit expense — coming in Step 8"
-
     def test_delete_stub_unchanged(self, client):
         text = client.get("/expenses/1/delete").get_data(as_text=True)
         assert text == "Delete expense — coming in Step 9"
